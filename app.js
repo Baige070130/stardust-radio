@@ -295,8 +295,8 @@
   // 记住当前在哪一页：刷新后停在原处，而不是跳回「默契盲盒」
   function activateTab(name, opts) {
     const target = TABS.indexOf(name) >= 0 ? name : "today";
-    $(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === target)));
-    $(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + target));
+    $$(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === target)));
+    $$(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + target));
     if (target === "wheel") requestAnimationFrame(() => drawWheel(currentRotation));
     try { localStorage.setItem(TAB_KEY, target); } catch (e) {}
     if (!(opts && opts.silent)) {
@@ -315,7 +315,7 @@
   }
 
   function initTabs() {
-    $(".tab").forEach((tab) => {
+    $$(".tab").forEach((tab) => {
       tab.addEventListener("click", () => activateTab(tab.dataset.tab));
     });
     window.addEventListener("hashchange", () => {
