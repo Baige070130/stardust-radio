@@ -1032,7 +1032,7 @@
       st.textContent = s.message || "未开启";
       st.dataset.state = s.state;
     };
-    if (!sync) { if (st) st.textContent = "同步模块未加载"; return; }
+    if (!sync) { if (st) { st.textContent = "同步模块没加载上（按 Ctrl+F5 强制刷新一次）"; st.dataset.state = "error"; } return; }
     sync.onChange(paint);
     paint();
 
