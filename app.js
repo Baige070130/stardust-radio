@@ -50,7 +50,8 @@
     startChanged: false,
     names: { a: "我", b: "TA" },
     start: "2026-08-01",
-    box: { date: "", qid: -1, a: "", b: "", opened: false, score: 0 },
+    who: "a",
+    box: { date: "", qid: -1, a: "", b: "", opened: false, scoreA: 0, scoreB: 0, score: 0 },
     history: [],
     story: { lines: [], done: false },
     wheel: {
@@ -72,9 +73,9 @@
     if (!s || typeof s !== "object") s = DEFAULT_STATE();
     s.names = Object.assign({ a: "我", b: "TA" }, s.names || {});
     if (!s.start) s.start = todayKey();
-    if (!s.box || typeof s.box !== "object") {
-      s.box = { date: "", qid: -1, a: "", b: "", opened: false, score: 0 };
-    }
+    s.box = Object.assign({ date: "", qid: -1, a: "", b: "", opened: false, scoreA: 0, scoreB: 0, score: 0 }, (s.box && typeof s.box === "object") ? s.box : {});
+    if (s.box.score && !s.box.scoreA) { s.box.scoreA = s.box.score; s.box.scoreB = s.box.score; }
+    if (s.who !== "a" && s.who !== "b") s.who = "a";
     if (!Array.isArray(s.history)) s.history = [];
     if (!s.story || !Array.isArray(s.story.lines)) s.story = { lines: [], done: false };
     if (!s.wheel || !Array.isArray(s.wheel.options) || s.wheel.options.length < 2) {
@@ -273,10 +274,8 @@
   function renderChrome() {
     $("#nameA").textContent = state.names.a || "我";
     $("#nameB").textContent = state.names.b || "TA";
-    $("#avA").textContent = (state.names.a || "我").slice(0, 1);
-    $("#avB").textContent = (state.names.b || "TA").slice(0, 1);
-    $("#labelA").textContent = (state.names.a || "我") + " 的答案";
-    $("#labelB").textContent = (state.names.b || "TA") + " 的答案";
+    const avMine = $("#avMine");
+    if (avMine) avMine.textContent = ((state.who === "b" ? state.names.b : state.names.a) || "我").slice(0, 3);
 
     const days = Math.max(1, dayDiff(state.start, todayKey()) + 1);
     $("#dayCount").textContent = `第 ${days} 天`;
@@ -325,7 +324,7 @@
   function ensureTodayBox() {
     const today = todayKey();
     if (state.box.date !== today) {
-      state.box = { date: today, qid: -1, a: "", b: "", opened: false, score: 0 };
+      state.box = { date: today, qid: -1, a: "", b: "", opened: false, scoreA: 0, scoreB: 0, score: 0 };
       save();
     }
   }
@@ -355,58 +354,126 @@
     $("#questionText").textContent = q;
     $("#todayDate").textContent = state.box.date;
 
-    const ansA = $("#ansA"), ansB = $("#ansB");
-    if (ansA.value !== state.box.a) ansA.value = state.box.a;
-    if (ansB.value !== state.box.b) ansB.value = state.box.b;
+    const mine = state.who === "b" ? "b" : "a";
+    const other = mine === "a" ? "b" : "a";
+    const mineName = state.names[mine] || (mine === "a" ? "我" : "TA");
+    const otherName = state.names[other] || (other === "a" ? "我" : "TA");
+
+    const whoA = $("#whoA"), whoB = $("#whoB");
+    if (whoA && whoB) {
+      whoA.textContent = state.names.a || "我";
+      whoB.textContent = state.names.b || "TA";
+      whoA.classList.toggle("on", mine === "a");
+      whoB.classList.toggle("on", mine === "b");
+      whoA.setAttribute("aria-pressed", mine === "a" ? "true" : "false");
+      whoB.setAttribute("aria-pressed", mine === "b" ? "true" : "false");
+    }
+
+    if ($("#whoNote")) $("#whoNote").textContent = "现在以「" + mineName + "」的身份作答";
+    if ($("#avMine")) $("#avMine").textContent = mineName.slice(0, 3);
+    if ($("#labelMine")) $("#labelMine").textContent = "我的答案";
+
+    const mineBox = $("#ansMine");
+    if (mineBox) {
+      const cur = state.box[mine] || "";
+      if (mineBox.value !== cur) mineBox.value = cur;
+      mineBox.placeholder = "只写你自己的答案 —— 填完把设备递给" + otherName;
+    }
 
     const opened = state.box.opened;
     $("#answerArea").hidden = opened;
     $("#boxState").textContent = opened ? "今日已开盒" : "今日未开盒";
     $("#boxState").classList.toggle("live", !opened);
-    $("#boxStreak").textContent = `连续 ${streakDays()} 天`;
+    $("#boxStreak").textContent = "连续 " + streakDays() + " 天";
     $("#dotToday").hidden = opened;
 
-    const ready = state.box.a.trim().length > 0 && state.box.b.trim().length > 0;
-    $("#btnOpenBox").disabled = !ready;
-    $("#openHint").textContent = ready ? "可以开盒了，看看你们有多默契" : "两边都填好才能开盒";
-
+    updateBoxReady();
     renderReveal();
     renderHistory();
+  }
+
+  function updateBoxReady() {
+    const mine = state.who === "b" ? "b" : "a";
+    const other = mine === "a" ? "b" : "a";
+    const mineDone = (state.box[mine] || "").trim().length > 0;
+    const otherDone = (state.box[other] || "").trim().length > 0;
+    const ready = mineDone && otherDone;
+    const btn = $("#btnOpenBox");
+    if (btn) btn.disabled = !ready;
+    const hint = $("#openHint");
+    if (!hint) return;
+    const otherName = state.names[other] || (other === "a" ? "我" : "TA");
+    if (ready) hint.textContent = "两个人都答完了，一起开盒吧";
+    else if (mineDone) hint.textContent = "你已答完，等「" + otherName + "」也答一遍";
+    else hint.textContent = "两个人都答完才能开盒";
   }
 
   function renderReveal() {
     const area = $("#revealArea");
     if (!state.box.opened) { area.innerHTML = ""; return; }
-    const s = state.box.score;
-    area.innerHTML = `
-      <div class="reveal">
-        <div class="reveal-card">
-          <div class="who">${esc(state.names.a)} 说</div>
-          ${esc(state.box.a)}
-        </div>
-        <div class="reveal-card">
-          <div class="who">${esc(state.names.b)} 说</div>
-          ${esc(state.box.b)}
-        </div>
-        <div class="score-bar">
-          <div class="score-ring" style="--p:${clamp(s, 0, 100)}%">${s}</div>
-          <div class="score-text">
-            <b>默契指数 ${s}</b>
-            <span>${esc(scoreLabel(s))}</span>
-          </div>
-        </div>
-        <div class="row">
-          <button class="btn ghost small" id="btnResetBox">重新答一次</button>
-        </div>
-      </div>`;
-    const rb = $("#btnResetBox");
-    if (rb) {
-      rb.addEventListener("click", () => {
-        state.box.opened = false;
-        state.box.score = 0;
+    const na = state.names.a || "我";
+    const nb = state.names.b || "TA";
+    const scored = Number(state.box.score) > 0;
+
+    const scoreBlock = scored
+      ? '<div class="score-bar">' +
+          '<div class="score-ring" style="--p:' + clamp(state.box.score, 0, 100) + '%">' + state.box.score + '</div>' +
+          '<div class="score-text">' +
+            '<b>默契指数 ' + state.box.score + '</b>' +
+            '<span>' + esc(scoreLabel(state.box.score)) + '</span>' +
+            '<span class="rate-detail">' + esc(na) + ' 打 ' + state.box.scoreA + ' 分 · ' + esc(nb) + ' 打 ' + state.box.scoreB + ' 分，取平均</span>' +
+          '</div>' +
+        '</div>'
+      : '<div class="rate-box">' +
+          '<div class="rate-title">答案都在这儿了。接下来各自给对方打个分，取平均就是今天的默契指数。</div>' +
+          '<label class="rate-row"><span>' + esc(na) + ' 打分</span>' +
+            '<input type="range" id="rateA" min="0" max="100" step="5" value="' + (state.box.scoreA || 70) + '">' +
+            '<output id="outA">' + (state.box.scoreA || 70) + '</output></label>' +
+          '<label class="rate-row"><span>' + esc(nb) + ' 打分</span>' +
+            '<input type="range" id="rateB" min="0" max="100" step="5" value="' + (state.box.scoreB || 70) + '">' +
+            '<output id="outB">' + (state.box.scoreB || 70) + '</output></label>' +
+          '<div class="row" style="margin-top:14px">' +
+            '<button class="btn primary" id="btnSaveScore">算出默契分</button>' +
+            '<span class="turn-note">两个人都拖一下，再点确认</span>' +
+          '</div>' +
+        '</div>';
+
+    area.innerHTML = '<div class="reveal">' +
+      '<div class="reveal-card"><div class="who">' + esc(na) + ' 说</div>' + esc(state.box.a) + '</div>' +
+      '<div class="reveal-card"><div class="who">' + esc(nb) + ' 说</div>' + esc(state.box.b) + '</div>' +
+      scoreBlock +
+      '<div class="row"><button class="btn ghost small" id="btnResetBox">重新答一次</button></div>' +
+    '</div>';
+
+    const resetBtn = $("#btnResetBox");
+    if (resetBtn) resetBtn.addEventListener("click", () => {
+      state.box.opened = false;
+      state.box.score = 0;
+      state.box.scoreA = 0;
+      state.box.scoreB = 0;
+      state.history = state.history.filter((h) => h.date !== state.box.date);
+      save();
+      renderBox();
+    });
+
+    if (!scored) {
+      const ra = $("#rateA"), rb = $("#rateB");
+      if (ra) ra.addEventListener("input", () => { $("#outA").textContent = ra.value; });
+      if (rb) rb.addEventListener("input", () => { $("#outB").textContent = rb.value; });
+      const btn = $("#btnSaveScore");
+      if (btn) btn.addEventListener("click", () => {
+        const sa = ra ? Number(ra.value) : 0;
+        const sb = rb ? Number(rb.value) : 0;
+        const avg = Math.round((sa + sb) / 2);
+        state.box.scoreA = sa;
+        state.box.scoreB = sb;
+        state.box.score = avg;
         state.history = state.history.filter((h) => h.date !== state.box.date);
+        state.history.push({ date: state.box.date, q: currentQuestion(), a: state.box.a, b: state.box.b, score: avg });
         save();
         renderBox();
+        celebrate($("#revealArea"), avg >= 60 ? 170 : 320);
+        toast("默契指数 " + avg);
       });
     }
   }
@@ -415,39 +482,43 @@
     const list = $("#historyList");
     const items = state.history.slice().sort((x, y) => (x.date < y.date ? 1 : -1)).slice(0, 6);
     if (!items.length) {
-      list.innerHTML = `<div class="empty">还没有往期回忆。<br>今天开第一个盒子吧 🎁</div>`;
+      list.innerHTML = '<div class="empty">还没有往期回忆。<br>今天开第一个盒子吧 🎁</div>';
       return;
     }
-    list.innerHTML = items.map((h) => `
-      <div class="hist-item">
-        <span class="d">${esc(h.date.slice(5))}</span>
-        <span class="q" title="${esc(h.q)}">${esc(h.q.length > 26 ? h.q.slice(0, 26) + "…" : h.q)}</span>
-        <span class="s">${h.score}</span>
-      </div>`).join("");
+    list.innerHTML = items.map((h) =>
+      '<div class="hist-item">' +
+        '<span class="d">' + esc(h.date.slice(5)) + '</span>' +
+        '<span class="q" title="' + esc(h.q) + '">' + esc(h.q.length > 26 ? h.q.slice(0, 26) + "…" : h.q) + '</span>' +
+        '<span class="s">' + (h.score == null ? "—" : h.score) + '</span>' +
+      '</div>').join("");
   }
 
   function initBox() {
-    const ansA = $("#ansA"), ansB = $("#ansB");
-    ansA.addEventListener("input", () => { state.box.a = ansA.value; save(); updateBoxReady(); });
-    ansB.addEventListener("input", () => { state.box.b = ansB.value; save(); updateBoxReady(); });
-
-    function updateBoxReady() {
-      const ready = state.box.a.trim() && state.box.b.trim();
-      $("#btnOpenBox").disabled = !ready;
-      $("#openHint").textContent = ready ? "可以开盒了，看看你们有多默契" : "两边都填好才能开盒";
+    const mineBox = $("#ansMine");
+    if (mineBox) {
+      mineBox.addEventListener("input", () => {
+        state.box[state.who === "b" ? "b" : "a"] = mineBox.value;
+        save();
+        updateBoxReady();
+      });
     }
 
-    $("#btnOpenBox").addEventListener("click", (e) => {
+    const pickWho = (w) => () => { state.who = w; save(); renderBox(); };
+    const whoA = $("#whoA"), whoB = $("#whoB");
+    if (whoA) whoA.addEventListener("click", pickWho("a"));
+    if (whoB) whoB.addEventListener("click", pickWho("b"));
+
+    $("#btnOpenBox").addEventListener("click", () => {
       if (!state.box.a.trim() || !state.box.b.trim()) return;
-      const score = SIM(state.box.a, state.box.b);
       state.box.opened = true;
-      state.box.score = score;
+      state.box.score = 0;
+      state.box.scoreA = 0;
+      state.box.scoreB = 0;
       state.history = state.history.filter((h) => h.date !== state.box.date);
-      state.history.push({ date: state.box.date, q: currentQuestion(), a: state.box.a, b: state.box.b, score });
+      state.history.push({ date: state.box.date, q: currentQuestion(), a: state.box.a, b: state.box.b, score: null });
       save();
       renderBox();
-      celebrate($("#revealArea"), score >= 60 ? 170 : 320);
-      toast(score >= 65 ? "✨ 默契不错哦" : "🎁 开盒成功");
+      toast("🎁 开盒啦，看看对方写了什么");
     });
 
     $("#btnSkipQ").addEventListener("click", () => {
