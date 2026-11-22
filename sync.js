@@ -73,8 +73,23 @@
 
     // 设备本地字段：谁在用这台设备
     out.who = local.who === "b" ? "b" : "a";
-    out.names = (remote && remote.names) || local.names;
-    out.start = (remote && remote.start) || local.start;
+    // 纪念日 / 名字：谁最近改过就用谁的，否则手动改完一同步就被云端旧值盖回去
+    const lStartAt = Number(local && local.startChangedAt) || 0;
+    const rStartAt = Number(remote && remote.startChangedAt) || 0;
+    if (rStartAt > lStartAt) out.start = remote.start;
+    else if (lStartAt > 0) out.start = local.start;
+    else out.start = (remote && remote.start) || local.start;
+    out.startChanged = !!(local && local.startChanged) || !!(remote && remote.startChanged) || !!out.startChanged;
+    out.startChangedAt = Math.max(lStartAt, rStartAt);
+
+    const lNameAt = Number(local && local.namesChangedAt) || 0;
+    const rNameAt = Number(remote && remote.namesChangedAt) || 0;
+    const nm = rNameAt > lNameAt ? remote : lNameAt > 0 ? local : (remote || local) || {};
+    out.names = {
+      a: (nm.names && nm.names.a) || (local.names && local.names.a) || "我",
+      b: (nm.names && nm.names.b) || (local.names && local.names.b) || "TA",
+    };
+    out.namesChangedAt = Math.max(lNameAt, rNameAt);
 
     // 待办：并集，按 id，时间新的赢；任一为已完成就算完成
     const tmap = new Map();
