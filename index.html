@@ -63,21 +63,21 @@
         <p class="box-question" id="questionText">加载中…</p>
 
         <div id="answerArea">
-          <div class="answer-grid">
-            <div class="answer-slot me">
-              <div class="who"><span class="avatar" id="avA">我</span><span id="labelA">我的答案</span></div>
-              <textarea id="ansA" maxlength="200" placeholder="先别给对方看…你的答案是什么？"></textarea>
-            </div>
-            <div class="answer-slot you">
-              <div class="who"><span class="avatar" id="avB">TA</span><span id="labelB">TA 的答案</span></div>
-              <textarea id="ansB" maxlength="200" placeholder="把 TA 的答案也填进来（或者让 TA 自己填）"></textarea>
-            </div>
+          <div class="me-switch" role="group" aria-label="选择你是谁">
+            <button class="me-btn" type="button" data-who="a" id="whoA" aria-pressed="true">我</button>
+            <button class="me-btn" type="button" data-who="b" id="whoB" aria-pressed="false">TA</button>
+            <span class="who-note" id="whoNote">现在以「我」的身份作答</span>
+          </div>
+
+          <div class="answer-slot me" style="margin-top:16px">
+            <div class="who"><span class="avatar" id="avMine">我</span><span id="labelMine">我的答案</span></div>
+            <textarea id="ansMine" maxlength="200" placeholder="只写你自己的答案 —— 填完把设备递给 TA"></textarea>
           </div>
 
           <div class="row gap-lg">
             <button class="btn primary" id="btnOpenBox" disabled>一起开盒 🎁</button>
             <button class="btn ghost small" id="btnSkipQ" title="换一个题目">换一题</button>
-            <span class="turn-note" id="openHint">两边都填好才能开盒</span>
+            <span class="turn-note" id="openHint">两个人都答完才能开盒</span>
           </div>
         </div>
 
