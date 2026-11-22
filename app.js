@@ -279,8 +279,9 @@
 
   /* ---------------- 通用渲染 ---------------- */
   function renderChrome() {
-    $("#nameA").textContent = state.names.a || "我";
-    $("#nameB").textContent = state.names.b || "TA";
+    const __other = state.who === "b" ? "a" : "b";
+    $("#nameA").textContent = state.names[state.who === "b" ? "b" : "a"] || "我";
+    $("#nameB").textContent = state.names[__other] || "TA";
     const avMine = $("#avMine");
     if (avMine) avMine.textContent = ((state.who === "b" ? state.names.b : state.names.a) || "我").slice(0, 3);
 
@@ -983,24 +984,43 @@
   function initSettings() {
     const modal = $("#modalSettings");
     const open = () => {
-      $("#inputNameA").value = state.names.a;
-      $("#inputNameB").value = state.names.b;
+      const __who = state.who === "b" ? "b" : "a";
+      const __other = __who === "a" ? "b" : "a";
+      $("#labelNameMe").textContent = "你的名字";
+      $("#labelNameOther").textContent = "TA 的名字（" + (__other === "a" ? "A" : "B") + "）";
+      $("#inputNameA").value = state.names[__who] || "";
+      $("#inputNameB").value = state.names[__other] || "";
+      const __swA = $("#setWhoA"), __swB = $("#setWhoB");
+      if (__swA) __swA.classList.toggle("on", __who === "a");
+      if (__swB) __swB.classList.toggle("on", __who === "b");
       $("#inputStart").value = state.start;
       modal.classList.add("on");
     };
     const close = () => modal.classList.remove("on");
 
     $("#btnSettings").addEventListener("click", open);
+    const setWho = (w) => {
+      state.who = w === "b" ? "b" : "a";
+      save();
+      open();
+      renderChrome();
+      renderBox();
+    };
+    const swA = $("#setWhoA"), swB = $("#setWhoB");
+    if (swA) swA.addEventListener("click", () => setWho("a"));
+    if (swB) swB.addEventListener("click", () => setWho("b"));
     $("#btnCloseSettings").addEventListener("click", close);
     modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
     $("#btnSaveSettings").addEventListener("click", () => {
       const __oldA = state.names.a, __oldB = state.names.b;
-
-      state.names.a = $("#inputNameA").value.trim() || "我";
-      state.names.b = $("#inputNameB").value.trim() || "TA";
-
+      const __who = state.who === "b" ? "b" : "a";
+      const __other = __who === "a" ? "b" : "a";
+      const __meName = ($("#inputNameA").value || "").trim();
+      const __taName = ($("#inputNameB").value || "").trim();
+      state.names[__who] = __meName || (__who === "a" ? "我" : "TA");
+      state.names[__other] = __taName || (__other === "a" ? "我" : "TA");
       if (state.names.a !== __oldA || state.names.b !== __oldB) state.namesChangedAt = Date.now();
       const pickedStart = $("#inputStart").value;
       if (pickedStart && pickedStart !== state.start) {
