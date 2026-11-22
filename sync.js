@@ -224,31 +224,56 @@
     }
   }
 
+  // 合并云端最新版本到本机，返回合并后的数据（两台设备同时改也不会互相覆盖）
+  async function mergeWithRemote() {
+    const local = window.OurOrbit && window.OurOrbit.state ? window.OurOrbit.state() : null;
+    if (!local) return null;
+    const remote = await pull(true);
+    if (!remote) return local;
+    const merged = mergeStates(local, remote);
+    S.applying = true;
+    try { window.OurOrbit.applyRemote(merged); } finally { S.applying = false; }
+    return merged;
+  }
+
   async function push() {
     if (!S.room || !S.key || !S.token || S.pushing) return;
     S.pushing = true;
     try {
       const ok = await ensureBranch();
       if (!ok) { setStatus("error", "没有写权限（token 无效或过期）"); return; }
-      const data = window.OurOrbit && window.OurOrbit.state ? window.OurOrbit.state() : null;
+
+      let data = await mergeWithRemote();
       if (!data) return;
-      const ts = Date.now();
-      const env = await encryptJSON(S.key, { ts, data });
-      const body = {
-        message: "sync " + new Date(ts).toISOString(),
-        content: b64(enc(JSON.stringify(env))),
-        branch: BRANCH,
-      };
-      const head = await gh(apiPath("?ref=" + BRANCH));
-      if (head.status === 200 && head.json && head.json.sha) body.sha = head.json.sha;
-      const put = await gh(apiPath(""), { method: "PUT", body });
-      if (put.status === 200 || put.status === 201) {
-        S.lastTs = ts;
-        if (put.json && put.json.content) S.lastSha = put.json.content.sha;
-        setStatus("ok", "已同步 · " + new Date().toLocaleTimeString("zh-CN"));
-      } else {
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const ts = Date.now();
+        const env = await encryptJSON(S.key, { ts, data });
+        const body = {
+          message: "sync " + new Date(ts).toISOString(),
+          content: b64(enc(JSON.stringify(env))),
+          branch: BRANCH,
+        };
+        const head = await gh(apiPath("?ref=" + BRANCH));
+        if (head.status === 200 && head.json && head.json.sha) body.sha = head.json.sha;
+        const put = await gh(apiPath(""), { method: "PUT", body });
+        if (put.status === 200 || put.status === 201) {
+          S.lastTs = ts;
+          if (put.json && put.json.content) S.lastSha = put.json.content.sha;
+          setStatus("ok", "已同步 · " + new Date().toLocaleTimeString("zh-CN"));
+          return;
+        }
+        if (put.status === 409) {
+          // 刚好被对方抢先写了：重新合并再来一次
+          const again = await mergeWithRemote();
+          if (!again) { setStatus("error", "上传冲突，稍后自动重试"); return; }
+          data = again;
+          continue;
+        }
         setStatus("error", "上传失败（" + put.status + "）");
+        return;
       }
+      setStatus("error", "上传冲突多次，稍后自动重试");
     } catch (e) {
       setStatus("error", "同步出错：" + (e && e.message ? e.message : e));
     } finally {
