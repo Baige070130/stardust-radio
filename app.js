@@ -289,15 +289,40 @@
   }
 
   /* ---------------- 选项卡 ---------------- */
+  const TAB_KEY = "our-orbit-tab";
+  const TABS = ["today", "relay", "wheel", "todo"];
+
+  // 记住当前在哪一页：刷新后停在原处，而不是跳回「默契盲盒」
+  function activateTab(name, opts) {
+    const target = TABS.indexOf(name) >= 0 ? name : "today";
+    $(".tab").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.tab === target)));
+    $(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + target));
+    if (target === "wheel") requestAnimationFrame(() => drawWheel(currentRotation));
+    try { localStorage.setItem(TAB_KEY, target); } catch (e) {}
+    if (!(opts && opts.silent)) {
+      // 地址栏也带上 #today/#relay/...，这样刷新、收藏、发给对方都能定位到同一页
+      try { history.replaceState(null, "", "#" + target); } catch (e) { location.hash = target; }
+    }
+    return target;
+  }
+
+  function currentTab() {
+    const fromHash = String(location.hash || "").replace(/^#/, "");
+    if (TABS.indexOf(fromHash) >= 0) return fromHash;
+    let saved = "";
+    try { saved = localStorage.getItem(TAB_KEY) || ""; } catch (e) {}
+    return TABS.indexOf(saved) >= 0 ? saved : "today";
+  }
+
   function initTabs() {
-    $$(".tab").forEach((tab) => {
-      tab.addEventListener("click", () => {
-        const name = tab.dataset.tab;
-        $$(".tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
-        $$(".view").forEach((v) => v.classList.toggle("active", v.id === "view-" + name));
-        if (name === "wheel") drawWheel(currentRotation);
-      });
+    $(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => activateTab(tab.dataset.tab));
     });
+    window.addEventListener("hashchange", () => {
+      const fromHash = String(location.hash || "").replace(/^#/, "");
+      if (TABS.indexOf(fromHash) >= 0) activateTab(fromHash, { silent: true });
+    });
+    activateTab(currentTab(), { silent: true });
   }
 
   /* ---------------- 默契盲盒 ---------------- */
