@@ -46,8 +46,10 @@
   const KEY = "our-orbit-v1";
 
   const DEFAULT_STATE = () => ({
+    v: 2,
+    startChanged: false,
     names: { a: "我", b: "TA" },
-    start: todayKey(),
+    start: "2026-08-01",
     box: { date: "", qid: -1, a: "", b: "", opened: false, score: 0 },
     history: [],
     story: { lines: [], done: false },
@@ -63,6 +65,7 @@
   });
 
   let state = load();
+  save(); // 让迁移结果（比如纪念日修正）立刻落盘
 
   /** 兼容旧数据 / 破损数据，保证嵌套结构都存在 */
   function normalize(s) {
@@ -78,6 +81,13 @@
       s.wheel = { options: ["火锅", "烧烤", "日料", "家常菜", "外卖", "随便走走"], last: null };
     }
     if (!Array.isArray(s.todos)) s.todos = [];
+
+    // v2 迁移：早期版本把纪念日默认成了「第一次打开那天」，
+    // 用户手动改过的（startChanged=true）不动，其余统一改为 2026-08-01。
+    if (!s.v || s.v < 2) {
+      if (!s.startChanged) s.start = "2026-08-01";
+      s.v = 2;
+    }
     return s;
   }
 
@@ -885,7 +895,12 @@
     $("#btnSaveSettings").addEventListener("click", () => {
       state.names.a = $("#inputNameA").value.trim() || "我";
       state.names.b = $("#inputNameB").value.trim() || "TA";
-      state.start = $("#inputStart").value || todayKey();
+      const pickedStart = $("#inputStart").value;
+      if (pickedStart && pickedStart !== state.start) {
+        state.start = pickedStart;
+        state.startChanged = true;
+      }
+      state.v = 2;
       save();
       renderChrome();
       renderBox();
