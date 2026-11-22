@@ -219,6 +219,24 @@
       <input type="date" id="inputStart" />
     </div>
 
+    <div class="sync-box">
+      <div class="sync-head">双人空间 <span class="sync-tag">可选</span></div>
+      <p class="sync-hint">两个人输入<b>同一个口令</b>，就进同一个空间：你这边改，对方几秒内就能看到。数据会用口令加密后再写进 GitHub，别人拿到文件也只是一堆密文。</p>
+      <div class="field">
+        <label for="syncPass">房间口令</label>
+        <input type="password" id="syncPass" maxlength="40" placeholder="比如 baige0821 —— 两个人都填这个" autocomplete="new-password" />
+      </div>
+      <div class="field">
+        <label for="syncToken">GitHub token（每台设备填一次）</label>
+        <input type="password" id="syncToken" maxlength="200" placeholder="github_pat_..." autocomplete="off" />
+      </div>
+      <div class="row gap-lg">
+        <button class="btn primary small" id="btnSyncOn">连接 / 更新</button>
+        <button class="btn ghost small" id="btnSyncOff">退出同步</button>
+      </div>
+      <div class="sync-state" id="syncState" data-state="off">未开启</div>
+    </div>
+
     <div class="row gap-lg">
       <button class="btn primary" id="btnSaveSettings">保存</button>
       <button class="btn ghost small" id="btnCloseSettings">关闭</button>
