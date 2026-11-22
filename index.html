@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#05040e" />
 <meta name="description" content="双人星轨 · 情侣互动空间：每日默契盲盒、故事接力、今晚吃啥转盘，还有一起要做的事。" />
 <title>双人星轨 · Our Orbit</title>
-<link rel="stylesheet" href="style.css?v=5" />
+<link rel="stylesheet" href="style.css?v=6" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='13' fill='none' stroke='%237cf6ff' stroke-width='2'/><circle cx='16' cy='16' r='4' fill='%23ff9ecd'/></svg>" />
 </head>
 <body>
@@ -207,12 +207,20 @@
     <p class="sub">名字和纪念日会显示在顶部。数据保存在本机浏览器，换设备可以用下面的分享码。</p>
 
     <div class="field">
-      <label for="inputNameA">你的名字</label>
+      <label for="inputNameA" id="labelNameMe">你的名字</label>
       <input type="text" id="inputNameA" maxlength="12" placeholder="我" />
     </div>
     <div class="field">
-      <label for="inputNameB">TA 的名字</label>
+      <label for="inputNameB" id="labelNameOther">TA 的名字</label>
       <input type="text" id="inputNameB" maxlength="12" placeholder="TA" />
+    </div>
+    <div class="field">
+      <label>我在这台设备上是</label>
+      <div class="me-switch" id="setWho">
+        <button class="me-btn" id="setWhoA" type="button">A</button>
+        <button class="me-btn" id="setWhoB" type="button">B</button>
+      </div>
+      <p class="sync-hint" style="margin-top:6px">名字是两个人共用的，但「你」和「TA」是按这台设备算的。选一次 A 或 B，之后名字就不会搞反。</p>
     </div>
     <div class="field">
       <label for="inputStart">在一起的纪念日</label>
@@ -252,8 +260,8 @@
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="questions.js?v=5"></script>
-<script src="sync.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="questions.js?v=6"></script>
+<script src="sync.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
