@@ -46,8 +46,10 @@
   const KEY = "our-orbit-v1";
 
   const DEFAULT_STATE = () => ({
-    v: 2,
+    v: 3,
     startChanged: false,
+    startChangedAt: 0,
+    namesChangedAt: 0,
     names: { a: "我", b: "TA" },
     start: "2026-08-01",
     who: "a",
@@ -88,7 +90,11 @@
     if (!s.v || s.v < 2) {
       if (!s.startChanged) s.start = "2026-08-01";
       s.v = 2;
-    }
+      }
+      if (s.startChanged && !s.startChangedAt) s.startChangedAt = 1;
+      if (!s.namesChangedAt) s.namesChangedAt = 0;
+      if (!s.v || s.v < 3) s.v = 3;
+      {    }
     return s;
   }
 
@@ -965,14 +971,19 @@
     document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
     $("#btnSaveSettings").addEventListener("click", () => {
+      const __oldA = state.names.a, __oldB = state.names.b;
+
       state.names.a = $("#inputNameA").value.trim() || "我";
       state.names.b = $("#inputNameB").value.trim() || "TA";
+
+      if (state.names.a !== __oldA || state.names.b !== __oldB) state.namesChangedAt = Date.now();
       const pickedStart = $("#inputStart").value;
       if (pickedStart && pickedStart !== state.start) {
         state.start = pickedStart;
         state.startChanged = true;
+        state.startChangedAt = Date.now();
       }
-      state.v = 2;
+      state.v = 3;
       save();
       renderChrome();
       renderBox();
