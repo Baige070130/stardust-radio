@@ -108,6 +108,7 @@
     } catch (e) {
       console.warn("保存失败", e);
     }
+    if (window.OurSync && !window.OurSync.isApplying()) window.OurSync.touch();
   }
 
   /* ---------------- 背景：星尘 ---------------- */
@@ -1022,6 +1023,51 @@
   }
 
   /* ---------------- 启动 ---------------- */
+  function initSync() {
+    const sync = window.OurSync;
+    const st = $("#syncState");
+    const paint = () => {
+      if (!sync || !st) return;
+      const s = sync.status();
+      st.textContent = s.message || "未开启";
+      st.dataset.state = s.state;
+    };
+    if (!sync) { if (st) st.textContent = "同步模块未加载"; return; }
+    sync.onChange(paint);
+    paint();
+
+    const btnOn = $("#btnSyncOn");
+    const btnOff = $("#btnSyncOff");
+    if (btnOn) {
+      btnOn.addEventListener("click", async () => {
+        const pw = ($("#syncPass").value || "").trim();
+        const tk = ($("#syncToken").value || "").trim();
+        if (pw.length < 4) { toast("口令至少 4 位"); return; }
+        btnOn.disabled = true;
+        try {
+          await sync.start(pw, tk);
+          toast("双人空间已连接");
+        } catch (e) {
+          toast("连接失败：" + (e && e.message ? e.message : e));
+        } finally {
+          btnOn.disabled = false;
+          paint();
+        }
+      });
+    }
+    if (btnOff) {
+      btnOff.addEventListener("click", () => {
+        sync.stop();
+        const p = $("#syncPass"); if (p) p.value = "";
+        const t = $("#syncToken"); if (t) t.value = "";
+        paint();
+        toast("已退出双人空间");
+      });
+    }
+
+    sync.resume().then(() => paint());
+  }
+
   function init() {
     renderChrome();
     initTabs();
@@ -1030,6 +1076,7 @@
     initWheel();
     initTodos();
     initSettings();
+    initSync();
 
     renderBox();
     renderStory();
@@ -1052,5 +1099,18 @@
   }
 
   // 给外部留一个口子
-  window.OurOrbit = { state: () => state, celebrate, Starfield };
+  window.OurOrbit = {
+    state: () => state,
+    celebrate,
+    Starfield,
+    applyRemote(next) {
+      state = normalize(Object.assign(DEFAULT_STATE(), next || {}));
+      ensureTodayBox();
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      renderChrome();
+      renderBox();
+      renderStory();
+      renderTodos();
+    },
+  };
 })();
