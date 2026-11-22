@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#05030f" />
+<title>星尘电台 · Stardust Radio</title>
+<meta name="description" content="一个会呼吸的粒子宇宙：移动手指搅动星云，点击炸开烟花，还能弹出一段五声音阶。" />
+<style>
+  :root{
+    --bg1:#05030f; --bg2:#120a2a; --bg3:#04060f;
+    --ink:#f4f1ff; --dim:#9c93c9; --accent:#7cf6ff; --warm:#ffb3d9;
+    --shadow: 0 30px 80px rgba(0,0,0,.6);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background: radial-gradient(1200px 800px at 20% 10%, #1b1040 0%, transparent 60%),
+                radial-gradient(1000px 700px at 85% 20%, #062a3a 0%, transparent 55%),
+                radial-gradient(900px 900px at 50% 110%, #2a0b32 0%, transparent 60%),
+                linear-gradient(180deg, var(--bg1), var(--bg3));
+    color:var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    overflow:hidden; overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+    cursor: crosshair;
+  }
+  #sky{position:fixed;inset:0;display:block;touch-action:none}
+  .vignette{
+    position:fixed;inset:0;pointer-events:none;
+    background: radial-gradient(circle at 50% 45%, transparent 45%, rgba(0,0,0,.55) 100%);
+    mix-blend-mode: multiply;
+  }
+  .grain{
+    position:fixed;inset:-50%;pointer-events:none;opacity:.05;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    animation: drift 12s steps(6) infinite;
+  }
+  @keyframes drift{ to{ transform: translate3d(-4%, 3%, 0) } }
+
+  header{
+    position:fixed;top:0;left:0;right:0;padding:clamp(18px,3vw,38px);
+    display:flex;justify-content:space-between;align-items:flex-start;
+    pointer-events:none; z-index:3;
+  }
+  .brand{display:flex;gap:14px;align-items:center}
+  .orb{
+    width:42px;height:42px;border-radius:50%;
+    background: conic-gradient(from 0deg, #7cf6ff, #b18cff, #ffb3d9, #7cf6ff);
+    filter: blur(.3px) saturate(1.3);
+    box-shadow: 0 0 24px rgba(124,246,255,.55), inset 0 0 18px rgba(255,255,255,.35);
+    animation: spin 9s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg) } }
+  h1{
+    font-size:clamp(15px,2.1vw,19px); margin:0; letter-spacing:.16em; font-weight:700;
+    text-transform:uppercase;
+  }
+  h1 small{display:block;font-size:11px;letter-spacing:.3em;color:var(--dim);margin-top:6px;font-weight:500}
+
+  .badge{
+    pointer-events:none;font-size:11px;letter-spacing:.18em;color:var(--dim);
+    border:1px solid rgba(156,147,201,.28);border-radius:999px;padding:7px 14px;
+    backdrop-filter: blur(6px);
+  }
+
+  .hint{
+    position:fixed;left:50%;bottom:clamp(96px,14vh,150px);transform:translateX(-50%);
+    text-align:center;pointer-events:none;z-index:3;
+    animation: float 5.5s ease-in-out infinite;
+  }
+  .hint b{display:block;font-size:clamp(13px,1.6vw,15px);letter-spacing:.28em;color:#dcd6ff}
+  .hint span{display:block;margin-top:10px;font-size:12px;letter-spacing:.12em;color:var(--dim)}
+  @keyframes float{ 50%{ transform: translateX(-50%) translateY(-8px) } }
+
+  .dock{
+    position:fixed;left:50%;bottom:clamp(22px,4vh,38px);transform:translateX(-50%);
+    display:flex;gap:8px;padding:8px;border-radius:999px;z-index:4;
+    background: rgba(15,12,32,.55);
+    border:1px solid rgba(156,147,201,.22);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px) saturate(1.2);
+  }
+  .dock button{
+    appearance:none;border:0;cursor:pointer;color:var(--dim);
+    background:transparent;border-radius:999px;
+    padding:11px 18px;font-size:12.5px;letter-spacing:.14em;
+    transition: color .25s, background .25s, transform .25s;
+    font-family:inherit;
+  }
+  .dock button:hover{color:#fff;background:rgba(255,255,255,.07);transform:translateY(-1px)}
+  .dock button[aria-pressed="true"]{
+    color:#06121a;background:linear-gradient(135deg,#7cf6ff,#b18cff);
+    box-shadow:0 6px 24px rgba(124,246,255,.35);
+    font-weight:700;
+  }
+  .counter{
+    position:fixed;right:clamp(18px,3vw,38px);bottom:clamp(30px,5vh,44px);
+    font-size:11px;letter-spacing:.2em;color:rgba(156,147,201,.75);z-index:3;
+    font-variant-numeric: tabular-nums;
+  }
+  .toast{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);
+    padding:16px 26px;border-radius:16px;z-index:5;pointer-events:none;
+    background:rgba(10,8,24,.8);border:1px solid rgba(124,246,255,.3);
+    color:#e9e4ff;font-size:13px;letter-spacing:.14em;opacity:0;
+    transition:opacity .4s, transform .4s;
+  }
+  .toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+  @media (max-width:560px){
+    .dock{padding:6px;gap:4px}
+    .dock button{padding:10px 12px;font-size:11px;letter-spacing:.06em}
+    .badge{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .orb,.grain,.hint{animation:none}
+  }
+</style>
+</head>
+<body>
+<canvas id="sky"></canvas>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<header>
+  <div class="brand">
+    <div class="orb" aria-hidden="true"></div>
+    <h1>星尘电台<small>STARDUST&nbsp;RADIO</small></h1>
+  </div>
+  <div class="badge" id="clock">--:--:--</div>
+</header>
+
+<div class="hint" id="hint">
+  <b>拖 动 搅 动 星 云</b>
+  <span>点击任意处 · 炸开一束烟火，并弹响一个音</span>
+</div>
+
+<div class="dock" role="toolbar" aria-label="模式切换">
+  <button data-mode="dust" aria-pressed="true">星尘</button>
+  <button data-mode="vortex" aria-pressed="false">漩涡</button>
+  <button data-mode="pulse" aria-pressed="false">心跳</button>
+  <button data-act="melody" aria-pressed="false">♪ 自动演奏</button>
+</div>
+
+<div class="counter" id="stat">0 粒星尘</div>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("sky");
+  const ctx = canvas.getContext("2d", { alpha: true });
+  const statEl = document.getElementById("stat");
+  const clockEl = document.getElementById("clock");
+  const toastEl = document.getElementById("toast");
+  const hintEl = document.getElementById("hint");
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  let W = 0, H = 0, DPR = 1;
+  const pointer = { x: 0, y: 0, px: 0, py: 0, active: false, vx: 0, vy: 0 };
+  let mode = "dust";
+  let melodyOn = false;
+
+  /* ---------- 粒子 ---------- */
+  const COUNT = reduce ? 500 : 1300;
+  const particles = [];
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const TAU = Math.PI * 2;
+
+  function makeParticle(i) {
+    const a = Math.random() * TAU;
+    const r = Math.sqrt(Math.random()) * Math.min(W, H) * 0.42;
+    return {
+      i,
+      x: W / 2 + Math.cos(a) * r,
+      y: H / 2 + Math.sin(a) * r,
+      vx: 0, vy: 0,
+      size: rand(0.7, 2.1),
+      hue: rand(180, 320),
+      seed: Math.random() * TAU,
+      wob: rand(0.15, 0.7),
+      // 三种形态的目标位置（比例坐标）
+      tx: 0.5, ty: 0.5
+    };
+  }
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    if (particles.length === 0) {
+      for (let i = 0; i < COUNT; i++) particles.push(makeParticle(i));
+    }
+    statEl.textContent = particles.length.toLocaleString("zh-CN") + " 粒星尘";
+    if (!pointer.active) { pointer.x = W / 2; pointer.y = H / 2; }
+  }
+
+  /* ---------- 形态目标点 ---------- */
+  function targetFor(p, t) {
+    const cx = W / 2, cy = H / 2;
+    if (mode === "vortex") {
+      const arm = 3;
+      const k = p.i / particles.length;
+      const angle = k * TAU * 2.6 + t * 0.25 + (p.i % arm) * (TAU / arm);
+      const radius = (0.08 + Math.pow(k, 0.75) * 0.82) * Math.min(W, H) * 0.44;
+      return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius * 0.62];
+    }
+    if (mode === "pulse") {
+      const k = p.i / particles.length;
+      const angle = k * TAU * 5 + t * 0.1;
+      const beat = 0.62 + Math.sin(t * 1.6) * 0.12;
+      const radius = beat * Math.min(W, H) * 0.36 * (0.55 + 0.45 * Math.abs(Math.cos(k * TAU * 2)));
+      return [cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius];
+    }
+    // dust：缓慢流动的星云
+    const n = 2.2;
+    const bx = Math.cos(p.seed + t * 0.08 * p.wob) * 0.34;
+    const by = Math.sin(p.seed * 1.7 + t * 0.07 * p.wob) * 0.30;
+    return [cx + (bx + 0.5) * W * 0.42 - W * 0.21, cy + (by + 0.5) * H * 0.42 - H * 0.21];
+  }
+
+  /* ---------- 烟火 ---------- */
+  const sparks = [];
+  function burst(x, y, hue) {
+    const n = mode === "pulse" ? 46 : 70;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU;
+      const sp = rand(1.6, 7.4);
+      sparks.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 1,
+        decay: rand(0.008, 0.022),
+        hue: (hue + rand(-24, 24) + 360) % 360,
+        size: rand(0.8, 2.6)
+      });
+    }
+    // 给附近的星尘一点冲击
+    for (const p of particles) {
+      const dx = p.x - x, dy = p.y - y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < 260 * 260) {
+        const f = (1 - Math.sqrt(d2) / 260) * 9;
+        const d = Math.sqrt(d2) || 1;
+        p.vx += (dx / d) * f;
+        p.vy += (dy / d) * f;
+      }
+    }
+  }
+
+  /* ---------- 声音（五声音阶） ---------- */
+  let audioCtx = null;
+  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21]; // 宫商角徵羽
+  const BASE = 220;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+
+  function note(step, opts = {}) {
+    const ac = ensureAudio();
+    if (!ac) return;
+    const semis = PENTA[((step % PENTA.length) + PENTA.length) % PENTA.length] + 12 * Math.floor(step / PENTA.length);
+    const freq = BASE * Math.pow(2, semis / 12);
+    const t0 = ac.currentTime;
+    const dur = opts.dur || 0.9;
+
+    const osc = ac.createOscillator();
+    const osc2 = ac.createOscillator();
+    const gain = ac.createGain();
+    const filter = ac.createBiquadFilter();
+
+    osc.type = "sine";
+    osc2.type = "triangle";
+    osc.frequency.value = freq;
+    osc2.frequency.value = freq * 2.002;
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(freq * 6, t0);
+    filter.frequency.exponentialRampToValueAtTime(freq * 1.6, t0 + dur);
+
+    const peak = (opts.gain || 0.16);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    osc.connect(filter); osc2.connect(filter);
+    filter.connect(gain); gain.connect(ac.destination);
+    osc.start(t0); osc2.start(t0);
+    osc.stop(t0 + dur + 0.05); osc2.stop(t0 + dur + 0.05);
+  }
+
+  let melodyStep = 0;
+  let melodyTimer = null;
+  function melodyTick() {
+    if (!melodyOn) return;
+    melodyStep += [-2, -1, -1, 0, 1, 1, 2, 1, 0, -1][Math.floor(Math.random() * 10)] || 0;
+    note(melodyStep, { gain: 0.10, dur: 1.35 });
+    melodyTimer = setTimeout(melodyTick, rand(380, 780));
+  }
+
+  function setMelody(on) {
+    melodyOn = on;
+    if (melodyTimer) { clearTimeout(melodyTimer); melodyTimer = null; }
+    if (on) { ensureAudio(); melodyTick(); toast("自动演奏已开启 · 再点一次可停"); }
+  }
+
+  /* ---------- 提示 ---------- */
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("on"), 1800);
+  }
+
+  /* ---------- 主循环 ---------- */
+  let t = 0;
+  let last = performance.now();
+  let frame = 0;
+
+  function loop(now) {
+    const dt = Math.min((now - last) / 1000, 0.05);
+    last = now;
+    t += dt;
+    frame++;
+
+    // 拖尾
+    ctx.globalCompositeOperation = "source-over";
+    ctx.fillStyle = "rgba(5, 3, 15, 0.26)";
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = "lighter";
+
+    // 指针速度
+    pointer.vx = pointer.x - pointer.px;
+    pointer.vy = pointer.y - pointer.py;
+    pointer.px = pointer.x; pointer.py = pointer.y;
+    const speed = Math.min(Math.hypot(pointer.vx, pointer.vy), 60);
+
+    // 星尘
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const [tx, ty] = targetFor(p, t);
+
+      // 向目标点柔顺靠拢
+      p.vx += (tx - p.x) * 0.0026;
+      p.vy += (ty - p.y) * 0.0026;
+
+      // 指针排斥 / 拖拽
+      if (pointer.active) {
+        const dx = p.x - pointer.x;
+        const dy = p.y - pointer.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < 260 * 260) {
+          const d = Math.sqrt(d2) || 1;
+          const f = (1 - d / 260);
+          p.vx += (dx / d) * f * (2.2 + speed * 0.09);
+          p.vy += (dy / d) * f * (2.2 + speed * 0.09);
+        }
+      }
+
+      p.vx *= 0.955;
+      p.vy *= 0.955;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < -60) p.x = W + 60; else if (p.x > W + 60) p.x = -60;
+      if (p.y < -60) p.y = H + 60; else if (p.y > H + 60) p.y = -60;
+
+      const sp = Math.hypot(p.vx, p.vy);
+      const glow = Math.min(0.35 + sp * 0.12, 0.95);
+      const r = p.size * (1 + Math.min(sp * 0.05, 0.9));
+
+      if (frame % 2 === 0 || sp > 3) {
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${p.hue}, 95%, ${62 + Math.min(sp * 2, 26)}%, ${glow})`;
+        ctx.arc(p.x, p.y, r, 0, TAU);
+        ctx.fill();
+      }
+    }
+
+    // 烟火
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i];
+      s.vx *= 0.975;
+      s.vy *= 0.975;
+      s.vy += 0.035;
+      s.x += s.vx;
+      s.y += s.vy;
+      s.life -= s.decay;
+      if (s.life <= 0) { sparks.splice(i, 1); continue; }
+      ctx.beginPath();
+      ctx.fillStyle = `hsla(${s.hue}, 100%, 68%, ${s.life})`;
+      ctx.arc(s.x, s.y, s.size * s.life, 0, TAU);
+      ctx.fill();
+    }
+
+    // 指针处的光晕
+    if (pointer.active) {
+      const g = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, 90 + speed * 3);
+      g.addColorStop(0, "rgba(124,246,255,.16)");
+      g.addColorStop(0.45, "rgba(177,140,255,.07)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(pointer.x, pointer.y, 90 + speed * 3, 0, TAU);
+      ctx.fill();
+    }
+
+    ctx.globalCompositeOperation = "source-over";
+
+    if (statEl.textContent === "") statEl.textContent = particles.length + " 粒星尘";
+
+    requestAnimationFrame(loop);
+  }
+
+  /* ---------- 交互 ---------- */
+  function pos(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  let hintGone = false;
+  function dismissHint() {
+    if (hintGone) return;
+    hintGone = true;
+    hintEl.style.transition = "opacity .8s, transform .8s";
+    hintEl.style.opacity = "0";
+    hintEl.style.transform = "translateX(-50%) translateY(14px)";
+  }
+
+  window.addEventListener("pointermove", (e) => {
+    const q = pos(e);
+    pointer.x = q.x; pointer.y = q.y; pointer.active = true;
+    dismissHint();
+  }, { passive: true });
+
+  window.addEventListener("pointerleave", () => { pointer.active = false; });
+
+  let lastNote = 0;
+  window.addEventListener("pointerdown", (e) => {
+    const q = pos(e);
+    pointer.x = q.x; pointer.y = q.y; pointer.active = true;
+    const hue = (q.x / W) * 120 + 180;
+    burst(q.x, q.y, hue);
+    const nowMs = performance.now();
+    if (nowMs - lastNote > 90) {
+      lastNote = nowMs;
+      note(Math.floor((q.y / H) * 9) + (mode === "pulse" ? 0 : 2), { gain: 0.14 });
+    }
+    dismissHint();
+  }, { passive: true });
+
+  document.querySelectorAll(".dock button[data-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      mode = btn.dataset.mode;
+      document.querySelectorAll(".dock button[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+      const names = { dust: "星尘 · 缓慢流动的星云", vortex: "漩涡 · 三臂星系在旋转", pulse: "心跳 · 呼吸般的光环" };
+      toast(names[mode]);
+    });
+  });
+
+  const melodyBtn = document.querySelector('.dock button[data-act="melody"]');
+  melodyBtn.addEventListener("click", () => {
+    setMelody(!melodyOn);
+    melodyBtn.setAttribute("aria-pressed", String(melodyOn));
+  });
+
+  /* 键盘彩蛋 */
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault();
+      const x = rand(W * 0.2, W * 0.8), y = rand(H * 0.2, H * 0.8);
+      burst(x, y, rand(170, 330));
+      note(Math.floor(rand(0, 10)), { gain: 0.15 });
+      toast("🎆 彩蛋已触发");
+    }
+  });
+
+  /* 时钟 */
+  function tickClock() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    clockEl.textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  /* 空闲时自动放一点小烟火 */
+  setInterval(() => {
+    if (!pointer.active && sparks.length < 40) {
+      burst(rand(W * 0.15, W * 0.85), rand(H * 0.15, H * 0.7), rand(170, 330));
+    }
+  }, 5200);
+
+  window.addEventListener("resize", resize);
+  resize();
+  requestAnimationFrame(loop);
+
+  // 首次交互后给个引导
+  window.addEventListener("pointerdown", function boot() {
+    if (!audioCtx) ensureAudio();
+    window.removeEventListener("pointerdown", boot);
+  }, { once: true });
+})();
+</script>
+</body>
+</html>
