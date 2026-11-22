@@ -155,6 +155,7 @@
     pushTimer: null,
     lastTs: 0,
     lastSha: "",
+    lastSig: "",
     state: "off", // off | syncing | ok | readonly | error
     message: "未开启",
     listeners: [],
@@ -239,7 +240,7 @@
     }
   }
 
-  // 合并云端最新版本到本机，返回合并后的数据（两台设备同时改也不会互相覆盖）
+  // 合并云端最新版本到本机，返回合并后的数据
   async function mergeWithRemote() {
     const local = window.OurOrbit && window.OurOrbit.state ? window.OurOrbit.state() : null;
     if (!local) return null;
@@ -251,17 +252,26 @@
     return merged;
   }
 
+  const timeNow = () => new Date().toLocaleTimeString("zh-CN");
+
   async function push() {
     if (!S.room || !S.key || !S.token || S.pushing) return;
     S.pushing = true;
     try {
       const ok = await ensureBranch();
-      if (!ok) { setStatus("error", "没有写权限（token 无效或过期）"); return; }
+      if (!ok) { setStatus("error", "没有写权限：token 可能过期，或没勾 Contents: Read and write"); return; }
 
       let data = await mergeWithRemote();
       if (!data) return;
 
-      for (let attempt = 0; attempt < 3; attempt++) {
+      // 内容没变化就不写，避免两台设备互相触发无限上传
+      let sig = JSON.stringify(data);
+      if (sig === S.lastSig) { setStatus("ok", "已是最新 · " + timeNow()); return; }
+
+      let lastMsg = "";
+      for (let attempt = 0; attempt < 5; attempt++) {
+        if (attempt) await new Promise((r) => setTimeout(r, 300 * attempt + Math.random() * 300));
+
         const ts = Date.now();
         const env = await encryptJSON(S.key, { ts, data });
         const body = {
@@ -269,26 +279,44 @@
           content: b64(enc(JSON.stringify(env))),
           branch: BRANCH,
         };
+
         const head = await gh(apiPath("?ref=" + BRANCH));
-        if (head.status === 200 && head.json && head.json.sha) body.sha = head.json.sha;
-        const put = await gh(apiPath(""), { method: "PUT", body });
+        const sha = head.status === 200 && head.json && head.json.sha ? head.json.sha : "";
+        if (sha) body.sha = sha;
+
+        let put = await gh(apiPath(""), { method: "PUT", body });
+
+        // 422「sha wasn't supplied」：文件已存在但我们以为它是新的 —— 补 sha 重来一次
+        if (put.status === 422 && !body.sha) {
+          const again = await gh(apiPath("?ref=" + BRANCH));
+          if (again.status === 200 && again.json && again.json.sha) {
+            body.sha = again.json.sha;
+            put = await gh(apiPath(""), { method: "PUT", body });
+          }
+        }
+
         if (put.status === 200 || put.status === 201) {
           S.lastTs = ts;
+          S.lastSig = sig;
           if (put.json && put.json.content) S.lastSha = put.json.content.sha;
-          setStatus("ok", "已同步 · " + new Date().toLocaleTimeString("zh-CN"));
+          setStatus("ok", "已同步 · " + timeNow());
           return;
         }
-        if (put.status === 409) {
-          // 刚好被对方抢先写了：重新合并再来一次
-          const again = await mergeWithRemote();
-          if (!again) { setStatus("error", "上传冲突，稍后自动重试"); return; }
-          data = again;
-          continue;
+
+        lastMsg = (put.json && put.json.message ? put.json.message : "") || ("HTTP " + put.status);
+
+        // 冲突：云端刚被另一台设备改过 —— 重新拉取合并，再试
+        const merged = await mergeWithRemote();
+        if (merged) {
+          const nextSig = JSON.stringify(merged);
+          if (nextSig === S.lastSig) { setStatus("ok", "已是最新 · " + timeNow()); return; }
+          data = merged;
+          sig = nextSig;
         }
-        setStatus("error", "上传失败（" + put.status + "）");
-        return;
       }
-      setStatus("error", "上传冲突多次，稍后自动重试");
+      setStatus("error", "上传冲突（" + String(lastMsg).slice(0, 50) + "），10 秒后自动重试");
+      if (S.pushTimer) clearTimeout(S.pushTimer);
+      S.pushTimer = setTimeout(() => { S.pushTimer = null; push(); }, 10000);
     } catch (e) {
       setStatus("error", "同步出错：" + (e && e.message ? e.message : e));
     } finally {
@@ -327,6 +355,7 @@
       S.keyB64 = b64(await crypto.subtle.exportKey("raw", S.key));
       S.token = token || "";
       S.lastTs = 0;
+      S.lastSig = "";
       persist();
       setStatus("syncing", "正在连接…");
       const doc = await pull(true);
@@ -338,7 +367,11 @@
       await push();
       if (S.timer) clearInterval(S.timer);
       S.timer = setInterval(syncOnce, POLL_MS);
-      setStatus(S.token ? "ok" : "readonly", S.token ? "已连接 · 房间 " + S.room.slice(0, 6) : "只读模式（没有 token）");
+      if (S.state !== "error") {
+
+        setStatus(S.token ? "ok" : "readonly", S.token ? "已连接 · 房间 " + S.room.slice(0, 6) : "只读模式（没有 token）");
+
+      }
       return true;
     },
 
