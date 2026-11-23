@@ -895,3 +895,15 @@ footer b { color: var(--pink); font-weight: 500; }
 .sync-state[data-state="ok"] { color: #7cf6ff; border-color: rgba(124,246,255,0.35); }
 .sync-state[data-state="readonly"] { color: var(--gold); border-color: rgba(255,212,121,0.3); }
 .sync-state[data-state="error"] { color: #ff9aa9; border-color: rgba(255,154,169,0.35); }
+
+/* ---- 盲盒：两格状态条（谁写好了 / 轮到谁） ---- */
+.slot-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.slot-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+  border-radius: 999px; font-size: 13px; color: var(--muted, #9aa4c2);
+  border: 1px solid var(--line, rgba(255,255,255,0.12)); background: var(--glass, rgba(255,255,255,0.04)); }
+.slot-chip i { font-style: normal; opacity: 0.75; }
+.slot-chip.done { color: #7de2a8; border-color: rgba(125,226,168,0.42); background: rgba(125,226,168,0.10); }
+.slot-chip.done i { opacity: 1; }
+.slot-tip { font-size: 12.5px; color: var(--muted, #9aa4c2); }
+.slot-tip.ok { color: #7de2a8; }
+.slot-tip.warn { color: var(--gold, #ffd479); }
