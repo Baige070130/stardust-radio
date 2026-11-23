@@ -404,11 +404,28 @@
 
     if ($("#whoNote")) $("#whoNote").textContent = "现在以「" + mineName + "」的身份作答";
     if ($("#avMine")) $("#avMine").textContent = mineName.slice(0, 3);
-    if ($("#labelMine")) $("#labelMine").textContent = "我的答案";
+    if ($("#labelMine")) $("#labelMine").textContent = "你在写「" + mineName + "」的答案";
+
+    const doneMine = (state.box[mine] || "").trim().length > 0;
+    const doneOther = (state.box[other] || "").trim().length > 0;
+    const line = $("#slotLine");
+    if (line) {
+      const chip = (name, done) =>
+        '<span class="slot-chip' + (done ? " done" : "") + '">' +
+        '<i>' + (done ? "✓" : "○") + '</i>' + esc(name) + (done ? " 写好了" : " 还没写") +
+        '</span>';
+      let tip = "";
+      if (doneMine && doneOther) tip = '<span class="slot-tip ok">两个人都写好了，可以开盒</span>';
+      else if (doneMine) tip = '<span class="slot-tip">你写好了 —— 把设备递给「' + esc(otherName) + '」</span>';
+      else if (doneOther) tip = '<span class="slot-tip warn">「' + esc(otherName) + '」已经写好了，现在轮到你，别重复填</span>';
+      else tip = '<span class="slot-tip">一人一格，各自只写自己的</span>';
+      line.innerHTML = chip(mineName, doneMine) + chip(otherName, doneOther) + tip;
+    }
 
     const mineBox = $("#ansMine");
     if (mineBox) {
       const cur = state.box[mine] || "";
+      mineBox.dataset.slot = mine;
       if (mineBox.value !== cur) mineBox.value = cur;
       mineBox.placeholder = "只写你自己的答案 —— 填完把设备递给" + otherName;
     }
@@ -529,17 +546,38 @@
   function initBox() {
     const mineBox = $("#ansMine");
     if (mineBox) {
+      // 写入目标格由渲染时记下的 dataset.slot 决定，
+      // 不在这里现算 state.who —— 否则身份刚切换、渲染还没跑完时，
+      // 上一格的字会被写进另一格（"我的答案跑到对方框里"）。
+      const slotOf = () => (mineBox.dataset.slot === "b" ? "b" : "a");
       mineBox.addEventListener("input", () => {
-        state.box[state.who === "b" ? "b" : "a"] = mineBox.value;
+        state.box[slotOf()] = mineBox.value;
         save();
         updateBoxReady();
       });
     }
 
-    const pickWho = (w) => () => { state.who = w; save(); renderBox(); };
+    const pickWho = (w) => () => {
+      if (state.who === w) return;
+      state.who = w;
+      save();
+      renderBox();
+      const nm = state.names[w] || (w === "a" ? "我" : "TA");
+      toast("现在以「" + nm + "」的身份作答");
+    };
     const whoA = $("#whoA"), whoB = $("#whoB");
     if (whoA) whoA.addEventListener("click", pickWho("a"));
     if (whoB) whoB.addEventListener("click", pickWho("b"));
+
+    const clearBtn = $("#btnClearMine");
+    if (clearBtn) clearBtn.addEventListener("click", () => {
+      const slot = mineBox && mineBox.dataset.slot === "b" ? "b" : "a";
+      if (!(state.box[slot] || "").trim()) { toast("这一格本来就是空的"); return; }
+      state.box[slot] = "";
+      save();
+      renderBox();
+      toast("已清空「" + (state.names[slot] || slot) + "」这格");
+    });
 
     $("#btnOpenBox").addEventListener("click", () => {
       if (!state.box.a.trim() || !state.box.b.trim()) return;
